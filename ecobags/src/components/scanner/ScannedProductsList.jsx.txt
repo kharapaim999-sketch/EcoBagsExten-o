@@ -1,0 +1,110 @@
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Package, Trash2, Eye, Plus, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function ScannedProductsList({ 
+  products, 
+  onRemove, 
+  onView, 
+  onAddToPantry,
+  addedIds = []
+}) {
+  if (products.length === 0) return null;
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return "bg-green-100 text-green-700";
+    if (score >= 60) return "bg-yellow-100 text-yellow-700";
+    if (score >= 40) return "bg-orange-100 text-orange-700";
+    return "bg-red-100 text-red-700";
+  };
+
+  return (
+    <Card className="border-none shadow-lg mb-6">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+            <Package className="w-5 h-5 text-purple-600" />
+            Produtos Escaneados ({products.length})
+          </h3>
+        </div>
+
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          <AnimatePresence>
+            {products.map((product, index) => {
+              const isAdded = addedIds.includes(index);
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Package className="w-5 h-5 text-white" />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800 truncate">
+                      {product.product_name}
+                    </p>
+                    <p className="text-sm text-gray-500 truncate">
+                      {product.brand}
+                    </p>
+                  </div>
+
+                  <Badge className={getScoreColor(product.sustainability_score)}>
+                    {product.sustainability_score}%
+                  </Badge>
+
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onView(product)}
+                      className="h-8 w-8"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    
+                    {isAdded ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled
+                        className="h-8 w-8 text-green-600"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => onAddToPantry(product, index)}
+                        className="h-8 w-8 text-purple-600 hover:text-purple-700"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    )}
+                    
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onRemove(index)}
+                      className="h-8 w-8 text-red-500 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

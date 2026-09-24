@@ -1,0 +1,314 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { X, Loader2, Sparkles, Package, Wand2 } from "lucide-react";
+import { motion } from "framer-motion";
+
+export default function ManualProductForm({ user, onSubmit, onClose }) {
+  const [productName, setProductName] = useState("");
+  const [brand, setBrand] = useState("");
+  const [category, setCategory] = useState("food");
+  const [barcode, setBarcode] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const fetchSuggestions = async () => {
+    if (!productName.trim() && !brand.trim()) return;
+    
+    setLoadingSuggestions(true);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Com base no nome "${productName}" e marca "${brand}", sugira informações sobre este produto.
+        
+Forneça sugestões concisas (máximo 2 frases por campo):
+- Categoria provável
+- Descrição breve do produto
+- Possíveis certificações
+- Pontuação estimada de sustentabilidade
+
+Responda de forma COMPLETA e SEM reticências.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            suggested_category: { type: "string" },
+            suggested_description: { type: "string" },
+            possible_certifications: { type: "array", items: { type: "string" } },
+            estimated_sustainability: { type: "number" }
+          }
+        }
+      });
+      setSuggestions(result);
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+    }
+    setLoadingSuggestions(false);
+  };
+
+  const applySuggestions = () => {
+    if (!suggestions) return;
+    
+    if (suggestions.suggested_category) {
+      const categoryMap = {
+        'alimento': 'food',
+        'comida': 'food',
+        'bebida': 'beverage',
+        'cuidado pessoal': 'personal_care',
+        'higiene': 'personal_care',
+        'casa': 'household',
+        'limpeza': 'household'
+      };
+      
+      const lowerCat = suggestions.suggested_category.toLowerCase();
+      for (const [key, value] of Object.entries(categoryMap)) {
+        if (lowerCat.includes(key)) {
+          setCategory(value);
+          break;
+        }
+      }
+    }
+    
+    if (suggestions.suggested_description && !description) {
+      setDescription(suggestions.suggested_description);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!productName.trim() || !brand.trim()) return;
+
+    setLoading(true);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Avalie o produto "${productName}" da marca "${brand}".
+Categoria: ${category}
+${description ? `Descrição adicional: ${description}` : ''}
+${barcode ? `Código de barras: ${barcode}` : ''}
+
+Perfil do usuário:
+- Alergias: ${user?.allergies?.join(", ") || "Nenhuma"}
+- Condições de Saúde: ${user?.health_conditions?.join(", ") || "Nenhuma"}
+- Preferências: ${user?.dietary_preferences?.join(", ") || "Nenhuma"}
+- Prioridades de Sustentabilidade: ${user?.sustainability_priorities?.join(", ") || "Nenhuma"}
+
+Forneça avaliação COMPLETA e CONCISA. NÃO use reticências. TERMINE todas as frases.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            product_name: { type: "string" },
+            brand: { type: "string" },
+            barcode: { type: "string" },
+            category: { type: "string" },
+            sustainability_score: { type: "number" },
+            packaging_score: { type: "number" },
+            company_practices_score: { type: "number" },
+            compliance_status: { type: "string" },
+            employee_rating: { type: "number" },
+            allergen_warnings: { type: "array", items: { type: "string" } },
+            certifications: { type: "array", items: { type: "string" } },
+            matches_preferences: { type: "boolean" },
+            recommendation: { type: "string" },
+            warnings: { type: "array", items: { type: "string" } },
+            packaging_details: { type: "string" },
+            company_practices_details: { type: "string" },
+            compliance_details: { type: "string" },
+            employee_reviews_summary: { type: "string" }
+          }
+        }
+      });
+
+      onSubmit({
+        ...result,
+        product_name: productName,
+        brand: brand,
+        category: category,
+        barcode: barcode || result.barcode
+      });
+    } catch (error) {
+      console.error("Error evaluating product:", error);
+    }
+    setLoading(false);
+  };
+
+  const categories = [
+    { value: "food", label: "Alimento" },
+    { value: "beverage", label: "Bebida" },
+    { value: "personal_care", label: "Cuidados Pessoais" },
+    { value: "household", label: "Casa/Limpeza" },
+    { value: "other", label: "Outro" }
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg"
+      >
+        <Card className="border-none shadow-2xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-purple-600" />
+              Adicionar Produto Manualmente
+            </CardTitle>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 md:col-span-1">
+                <Label htmlFor="productName">Nome do Produto *</Label>
+                <Input
+                  id="productName"
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="Ex: Leite Integral"
+                  className="mt-1"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <Label htmlFor="brand">Marca *</Label>
+                <Input
+                  id="brand"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="Ex: Nestlé"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="category">Categoria</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="barcode">Código de Barras</Label>
+                <Input
+                  id="barcode"
+                  value={barcode}
+                  onChange={(e) => setBarcode(e.target.value)}
+                  placeholder="Opcional"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="description">Descrição Adicional</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Informações extras sobre o produto..."
+                className="mt-1 h-20"
+              />
+            </div>
+
+            {/* AI Suggestions */}
+            <div className="bg-purple-50 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-purple-800 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Sugestões com IA
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={fetchSuggestions}
+                  disabled={loadingSuggestions || (!productName && !brand)}
+                  className="text-purple-600 border-purple-300 hover:bg-purple-100"
+                >
+                  {loadingSuggestions ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Wand2 className="w-4 h-4 mr-1" />
+                      Buscar
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {suggestions && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-2"
+                >
+                  <div className="text-sm text-gray-700">
+                    <p><strong>Categoria:</strong> {suggestions.suggested_category}</p>
+                    <p><strong>Descrição:</strong> {suggestions.suggested_description}</p>
+                    {suggestions.possible_certifications?.length > 0 && (
+                      <p><strong>Certificações:</strong> {suggestions.possible_certifications.join(", ")}</p>
+                    )}
+                    <p><strong>Sustentabilidade estimada:</strong> {suggestions.estimated_sustainability}%</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={applySuggestions}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    Aplicar Sugestões
+                  </Button>
+                </motion.div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={onClose} className="flex-1">
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={loading || !productName.trim() || !brand.trim()}
+                className="flex-1 bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analisando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Analisar Produto
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  );
+}

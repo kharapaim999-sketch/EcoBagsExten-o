@@ -1,0 +1,87 @@
+{
+  "name": "PantryItem",
+  "type": "object",
+  "properties": {
+    "product_name": {
+      "type": "string",
+      "description": "Name of the product"
+    },
+    "brand": {
+      "type": "string",
+      "description": "Brand/company name"
+    },
+    "barcode": {
+      "type": "string",
+      "description": "Product barcode if scanned"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "food",
+        "beverage",
+        "personal_care",
+        "household",
+        "other"
+      ]
+    },
+    "expiration_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Product expiration date"
+    },
+    "quantity": {
+      "type": "number",
+      "default": 1
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Product image"
+    },
+    "sustainability_score": {
+      "type": "number",
+      "description": "Overall sustainability score (0-100)"
+    },
+    "matches_preferences": {
+      "type": "boolean",
+      "description": "Whether product matches user preferences"
+    },
+    "evaluation_data": {
+      "type": "object",
+      "description": "Detailed evaluation results",
+      "properties": {
+        "packaging_score": {
+          "type": "number"
+        },
+        "company_practices_score": {
+          "type": "number"
+        },
+        "compliance_status": {
+          "type": "string"
+        },
+        "employee_rating": {
+          "type": "number"
+        },
+        "allergen_warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "certifications": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "User notes about the product"
+    }
+  },
+  "required": [
+    "product_name",
+    "brand"
+  ]
+}

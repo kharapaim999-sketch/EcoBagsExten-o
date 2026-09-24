@@ -1,0 +1,27 @@
+import Home from './pages/Home';
+import Profile from './pages/Profile';
+import Scanner from './pages/Scanner';
+import Pantry from './pages/Pantry';
+import Notifications from './pages/Notifications';
+import Companies from './pages/Companies';
+import About from './pages/About';
+import Welcome from './pages/Welcome';
+import __Layout from './Layout.jsx';
+
+
+export const PAGES = {
+    "Home": Home,
+    "Profile": Profile,
+    "Scanner": Scanner,
+    "Pantry": Pantry,
+    "Notifications": Notifications,
+    "Companies": Companies,
+    "About": About,
+    "Welcome": Welcome,
+}
+
+export const pagesConfig = {
+    mainPage: "Home",
+    Pages: PAGES,
+    Layout: __Layout,
+};

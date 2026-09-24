@@ -1,0 +1,192 @@
+import React, { useRef, useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { X, Scan, Barcode, QrCode, CheckCircle, Loader2, Camera } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Html5Qrcode } from "html5-qrcode";
+
+export default function ScannerCamera({ onCapture, onClose }) {
+  const scannerRef = useRef(null);
+  const detectedRef = useRef(false);
+  const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState(null);
+  const [detected, setDetected] = useState(null);
+  const [isStarting, setIsStarting] = useState(true);
+
+  useEffect(() => {
+    startScanner();
+    return () => stopScanner();
+  }, []);
+
+  const startScanner = async () => {
+    setIsStarting(true);
+    setError(null);
+    try {
+      const html5Qrcode = new Html5Qrcode("qr-reader-full");
+      scannerRef.current = html5Qrcode;
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.3333,
+        disableFlip: false,
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
+      };
+
+      await html5Qrcode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText, decodedResult) => {
+          if (!detectedRef.current) {
+            detectedRef.current = true;
+            setDetected(decodedText);
+            setTimeout(() => {
+              onCapture(decodedText);
+            }, 600);
+          }
+        },
+        (errorMessage) => {
+          // Per-frame scan errors are normal (no code found in frame)
+        }
+      );
+
+      setIsReady(true);
+      setIsStarting(false);
+    } catch (err) {
+      console.error("Error starting scanner:", err);
+      setError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+      setIsStarting(false);
+    }
+  };
+
+  const stopScanner = async () => {
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch (e) {
+        // Already stopped
+      }
+    }
+  };
+
+  const handleClose = async () => {
+    await stopScanner();
+    onClose();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="relative"
+    >
+      {/* Auto-detection indicator */}
+      <div className="mb-4 flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-green-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
+        <Scan className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+          Detecção automática de Código de Barras e QR Code
+        </span>
+        <div className="flex gap-1">
+          <Barcode className="w-4 h-4 text-green-600 dark:text-green-400" />
+          <QrCode className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+        </div>
+      </div>
+
+      {/* Scanner container */}
+      <div className="relative bg-black rounded-2xl overflow-hidden aspect-[4/3] shadow-2xl">
+        {/* html5-qrcode renders the video here */}
+        <div id="qr-reader-full" className="w-full h-full" />
+
+        {/* Loading overlay while starting */}
+        <AnimatePresence>
+          {isStarting && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black flex items-center justify-center z-30"
+            >
+              <div className="text-center">
+                <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-3" />
+                <p className="text-white text-sm">Iniciando câmera</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Success overlay when code detected */}
+        <AnimatePresence>
+          {detected && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-green-900/80 flex items-center justify-center z-30"
+            >
+              <div className="text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200 }}
+                  className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3"
+                >
+                  <CheckCircle className="w-12 h-12 text-white" />
+                </motion.div>
+                <p className="text-white font-semibold text-lg">Código detectado!</p>
+                <p className="text-green-200 text-sm mt-1 font-mono break-all px-4 max-w-xs">{detected}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Error overlay */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/80 flex items-center justify-center z-30 p-6"
+            >
+              <div className="text-center">
+                <p className="text-red-400 mb-4">{error}</p>
+                <Button onClick={handleClose} variant="outline">
+                  Fechar
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Status indicator */}
+        {isReady && !detected && !error && (
+          <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full z-20">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-white text-xs font-medium">Escaneando</span>
+          </div>
+        )}
+
+        {/* Close button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 w-10 h-10 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center transition-colors z-20"
+        >
+          <X className="w-5 h-5 text-white" />
+        </button>
+      </div>
+
+      {/* Instructions */}
+      <div className="mt-4 p-4 rounded-xl border bg-gradient-to-r from-green-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 border-gray-200 dark:border-gray-600">
+        <p className="text-sm flex items-start gap-2 text-gray-700 dark:text-gray-200">
+          <Camera className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+          <span>
+            <strong>Escaneamento automático:</strong> Aponte a câmera para o código. A detecção acontece automaticamente — basta manter o código centralizado e bem iluminado.
+          </span>
+        </p>
+      </div>
+    </motion.div>
+  );
+}

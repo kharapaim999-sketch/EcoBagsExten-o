@@ -1,0 +1,389 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Leaf, Package, Shield, Users, AlertTriangle, 
+  CheckCircle, XCircle, Plus, Calendar, HeartPulse, Apple, Utensils
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import NutritionAnalysis from "./NutritionAnalysis";
+
+export default function ProductEvaluation({ data, user }) {
+  const navigate = useNavigate();
+  const [adding, setAdding] = useState(false);
+  const [showPantryForm, setShowPantryForm] = useState(false);
+  const [expirationDate, setExpirationDate] = useState("");
+  const [quantity, setQuantity] = useState(1);
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-600";
+    if (score >= 40) return "text-orange-600";
+    return "text-red-600";
+  };
+
+  const getScoreBgColor = (score) => {
+    if (score >= 80) return "bg-green-100";
+    if (score >= 60) return "bg-yellow-100";
+    if (score >= 40) return "bg-orange-100";
+    return "bg-red-100";
+  };
+
+  const handleAddToPantry = async () => {
+    setAdding(true);
+    try {
+      await base44.entities.PantryItem.create({
+        product_name: data.product_name,
+        brand: data.brand,
+        category: data.category,
+        expiration_date: expirationDate || null,
+        quantity,
+        sustainability_score: data.sustainability_score,
+        matches_preferences: data.matches_preferences,
+        evaluation_data: {
+          packaging_score: data.packaging_score,
+          company_practices_score: data.company_practices_score,
+          compliance_status: data.compliance_status,
+          employee_rating: data.employee_rating,
+          allergen_warnings: data.allergen_warnings,
+          certifications: data.certifications
+        }
+      });
+      navigate(createPageUrl("Pantry"));
+    } catch (error) {
+      console.error("Error adding to pantry:", error);
+    }
+    setAdding(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header Card */}
+      <Card className="border-none shadow-xl bg-gradient-to-br from-white to-green-50 dark:from-gray-800 dark:to-gray-900 dark:shadow-2xl dark:shadow-green-500/10">
+        <CardContent className="p-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">{data.product_name}</h2>
+              <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">{data.brand}</p>
+              <div className="flex flex-wrap gap-2">
+                <Badge className={data.matches_preferences ? "bg-green-500" : "bg-red-500"}>
+                  {data.matches_preferences ? (
+                    <><CheckCircle className="w-3 h-3 mr-1" /> Combina com Suas Necessidades</>
+                  ) : (
+                    <><XCircle className="w-3 h-3 mr-1" /> Não Recomendado</>
+                  )}
+                </Badge>
+                <Badge variant="outline">{data.category}</Badge>
+                {data.certifications?.map((cert) => (
+                  <Badge key={cert} className="bg-purple-100 text-purple-700">
+                    {cert}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className={`text-5xl font-bold ${getScoreColor(data.sustainability_score)}`}>
+                {data.sustainability_score}
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Pontuação de Sustentabilidade</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Health Alerts Section - NEW */}
+      <Card className={`border-none shadow-xl ${data.matches_preferences ? 'bg-green-50 border-l-4 border-l-green-500' : 'bg-red-50 border-l-4 border-l-red-500'}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            {data.matches_preferences ? (
+              <>
+                <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
+                  <CheckCircle className="w-7 h-7 text-white" />
+                </div>
+                <span className="text-green-800 text-xl">Avisos de Saúde</span>
+              </>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center animate-pulse">
+                  <AlertTriangle className="w-7 h-7 text-white" />
+                </div>
+                <span className="text-red-800 text-xl">⚠️ Avisos de Saúde</span>
+              </>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Compatibility Summary */}
+          <div className={`p-4 rounded-lg ${data.matches_preferences ? 'bg-green-100' : 'bg-red-100'}`}>
+            <h4 className={`font-bold text-lg mb-2 flex items-center gap-2 ${data.matches_preferences ? 'text-green-800' : 'text-red-800'}`}>
+              {data.matches_preferences ? (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  Produto Compatível com Seu Perfil
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-5 h-5" />
+                  Produto Não Recomendado para Seu Perfil
+                </>
+              )}
+            </h4>
+            {!data.matches_preferences && data.warnings?.length > 0 && (
+              <p className="text-red-700 font-medium">
+                {data.warnings[0]}
+              </p>
+            )}
+          </div>
+
+          {/* Detailed Checks */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Allergies Check */}
+            <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex items-center gap-2 mb-2">
+                <HeartPulse className={`w-5 h-5 ${
+                  data.allergen_warnings?.length > 0 ? 'text-red-500' : 'text-green-500'
+                }`} />
+                <h5 className="font-semibold text-gray-800">Alergias</h5>
+              </div>
+              {data.allergen_warnings?.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-red-700 font-medium">Contém alérgenos:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {data.allergen_warnings.slice(0, 3).map((allergen) => (
+                      <Badge key={allergen} variant="destructive" className="text-xs">
+                        {allergen}
+                      </Badge>
+                    ))}
+                    {data.allergen_warnings.length > 3 && (
+                      <Badge variant="destructive" className="text-xs">
+                        +{data.allergen_warnings.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-green-700">✓ Sem alérgenos detectados</p>
+              )}
+            </div>
+
+            {/* Health Conditions Check */}
+            <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Apple className={`w-5 h-5 ${
+                  user?.health_conditions?.length > 0 && !data.matches_preferences ? 'text-orange-500' : 'text-green-500'
+                }`} />
+                <h5 className="font-semibold text-gray-800">Condições de Saúde</h5>
+              </div>
+              {user?.health_conditions?.length > 0 ? (
+                <p className="text-sm text-gray-700">
+                  {data.matches_preferences ? '✓ Compatível' : '⚠️ Verificar restrições'}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">Nenhuma condição registrada</p>
+              )}
+            </div>
+
+            {/* Dietary Preferences Check */}
+            <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Utensils className={`w-5 h-5 ${
+                  user?.dietary_preferences?.length > 0 && !data.matches_preferences ? 'text-orange-500' : 'text-green-500'
+                }`} />
+                <h5 className="font-semibold text-gray-800">Preferências Alimentares</h5>
+              </div>
+              {user?.dietary_preferences?.length > 0 ? (
+                <p className="text-sm text-gray-700">
+                  {data.matches_preferences ? '✓ Compatível' : '⚠️ Pode não atender'}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">Nenhuma preferência registrada</p>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Warnings */}
+          {data.warnings?.length > 1 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h5 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                Avisos Adicionais:
+              </h5>
+              <ul className="space-y-1">
+                {data.warnings.slice(1).map((warning, idx) => (
+                  <li key={idx} className="text-sm text-orange-700 flex items-start gap-2">
+                    <span className="mt-1">•</span>
+                    <span>{warning}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Scores Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <ScoreCard
+          icon={Package}
+          title="Embalagem"
+          score={data.packaging_score}
+          details={data.packaging_details}
+        />
+        <ScoreCard
+          icon={Leaf}
+          title="Práticas da Empresa"
+          score={data.company_practices_score}
+          details={data.company_practices_details}
+        />
+        <ScoreCard
+          icon={Users}
+          title="Avaliação de Funcionários"
+          score={data.employee_rating * 20}
+          details={data.employee_reviews_summary}
+          maxValue={5}
+        />
+      </div>
+
+      {/* Nutrition Analysis */}
+      {data.nutrition_facts && (
+        <NutritionAnalysis 
+          nutritionFacts={data.nutrition_facts} 
+          userTargets={user}
+          alternatives={data.alternative_products}
+        />
+      )}
+
+      {/* Compliance & Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="border-none shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600" />
+              Conformidade Governamental
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-700">{data.compliance_details}</p>
+            <Badge className="mt-3 bg-blue-100 text-blue-700">
+              {data.compliance_status}
+            </Badge>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              Recomendação
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-700">{data.recommendation}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Add to Pantry */}
+      <Card className="border-none shadow-xl bg-gradient-to-br from-purple-50 to-white">
+        <CardContent className="p-6">
+          {!showPantryForm ? (
+            <Button
+              onClick={() => setShowPantryForm(true)}
+              className="w-full h-14 text-lg bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Adicionar à Despensa
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">Adicionar à Sua Despensa</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="expiration">Data de Validade (Opcional)</Label>
+                  <Input
+                    id="expiration"
+                    type="date"
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="quantity">Quantidade</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(parseInt(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleAddToPantry}
+                  disabled={adding}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+                >
+                  {adding ? "Adicionando..." : "Confirmar"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPantryForm(false)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ScoreCard({ icon: Icon, title, score, details, maxValue = 100 }) {
+  const getScoreColor = (s) => {
+    const normalized = maxValue === 5 ? (s / maxValue) * 100 : s;
+    if (normalized >= 80) return "from-green-500 to-emerald-600";
+    if (normalized >= 60) return "from-yellow-500 to-orange-500";
+    if (normalized >= 40) return "from-orange-500 to-red-500";
+    return "from-red-500 to-red-700";
+  };
+
+  const displayScore = maxValue === 5 ? score / 20 : score;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+    >
+      <Card className="border-none shadow-lg h-full">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getScoreColor(score)} flex items-center justify-center`}>
+              <Icon className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-800">{title}</h3>
+              <p className="text-2xl font-bold text-gray-800">
+                {displayScore.toFixed(1)}{maxValue === 5 ? "/5" : "%"}
+              </p>
+            </div>
+          </div>
+          <Progress value={score} className="mb-3" />
+          <p className="text-sm text-gray-600">{details}</p>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}

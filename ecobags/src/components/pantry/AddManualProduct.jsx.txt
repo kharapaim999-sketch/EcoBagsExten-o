@@ -1,0 +1,393 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { X, Loader2, CheckCircle, AlertTriangle, Package, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { motion } from "framer-motion";
+
+export default function AddManualProduct({ user, onClose, onSuccess }) {
+  const navigate = useNavigate();
+  const [productName, setProductName] = useState("");
+  const [brand, setBrand] = useState("");
+  const [category, setCategory] = useState("food");
+  const [expirationDate, setExpirationDate] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState("");
+  const [researching, setResearching] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [evaluationResult, setEvaluationResult] = useState(null);
+  const [showResult, setShowResult] = useState(false);
+  const [productAdded, setProductAdded] = useState(false);
+
+  const categories = [
+    { value: "food", label: "Alimentos" },
+    { value: "beverage", label: "Bebidas" },
+    { value: "personal_care", label: "Cuidados Pessoais" },
+    { value: "household", label: "Casa" },
+    { value: "other", label: "Outros" }
+  ];
+
+  const handleAdd = async () => {
+    if (!productName || !brand) return;
+
+    setAdding(true);
+    setResearching(true);
+
+    try {
+      // Research the product
+      const evaluation = await base44.integrations.Core.InvokeLLM({
+        prompt: `Pesquise e avalie este produto: "${productName}" da marca "${brand}".
+        
+        Perfil do usuário:
+        - Alergias: ${user?.allergies?.join(", ") || "Nenhuma"}
+        - Condições de Saúde: ${user?.health_conditions?.join(", ") || "Nenhuma"}
+        - Preferências Alimentares: ${user?.dietary_preferences?.join(", ") || "Nenhuma"}
+        - Prioridades de Sustentabilidade: ${user?.sustainability_priorities?.join(", ") || "Nenhuma"}
+        
+        Forneça avaliação com pontuação de sustentabilidade, avisos de alérgenos e se corresponde às necessidades do usuário.`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            sustainability_score: { type: "number" },
+            packaging_score: { type: "number" },
+            company_practices_score: { type: "number" },
+            compliance_status: { type: "string" },
+            employee_rating: { type: "number" },
+            allergen_warnings: { type: "array", items: { type: "string" } },
+            certifications: { type: "array", items: { type: "string" } },
+            matches_preferences: { type: "boolean" }
+          }
+        }
+      });
+
+      setResearching(false);
+      setEvaluationResult(evaluation);
+      setShowResult(true);
+      setAdding(false);
+    } catch (error) {
+      console.error("Error adding product:", error);
+      setResearching(false);
+      setAdding(false);
+    }
+  };
+
+  const handleConfirmAdd = async () => {
+    setAdding(true);
+    try {
+      await base44.entities.PantryItem.create({
+        product_name: productName,
+        brand,
+        category,
+        expiration_date: expirationDate || null,
+        quantity,
+        notes,
+        sustainability_score: evaluationResult.sustainability_score,
+        matches_preferences: evaluationResult.matches_preferences,
+        evaluation_data: {
+          packaging_score: evaluationResult.packaging_score,
+          company_practices_score: evaluationResult.company_practices_score,
+          compliance_status: evaluationResult.compliance_status,
+          employee_rating: evaluationResult.employee_rating,
+          allergen_warnings: evaluationResult.allergen_warnings,
+          certifications: evaluationResult.certifications
+        }
+      });
+
+      setProductAdded(true);
+      setAdding(false);
+    } catch (error) {
+      console.error("Error adding product:", error);
+      setAdding(false);
+    }
+  };
+
+  const handleSearchDetailed = () => {
+    const searchQuery = `${productName} ${brand}`;
+    navigate(createPageUrl("Scanner") + `?search=${encodeURIComponent(searchQuery)}`);
+    onClose();
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return "text-green-600 bg-green-100";
+    if (score >= 60) return "text-yellow-600 bg-yellow-100";
+    if (score >= 40) return "text-orange-600 bg-orange-100";
+    return "text-red-600 bg-red-100";
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <Card className="border-none shadow-2xl">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Adicionar Produto Manualmente</CardTitle>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {researching ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
+                <p className="text-lg font-medium text-gray-700">Pesquisando produto...</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Estamos avaliando sustentabilidade e compatibilidade com suas necessidades
+                </p>
+              </div>
+            ) : showResult && evaluationResult ? (
+              <div className="space-y-6">
+                {/* Evaluation Summary */}
+                <div className="text-center pb-4 border-b">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-purple-600 rounded-full flex items-center justify-center">
+                    <Package className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-1">{productName}</h3>
+                  <p className="text-gray-600">{brand}</p>
+                </div>
+
+                {/* Scores */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className={`text-3xl font-bold mb-1 ${getScoreColor(evaluationResult.sustainability_score)}`}>
+                      {evaluationResult.sustainability_score}
+                    </div>
+                    <p className="text-xs text-gray-600">Sustentabilidade</p>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-3xl font-bold mb-1 ${getScoreColor(evaluationResult.packaging_score)}`}>
+                      {evaluationResult.packaging_score}
+                    </div>
+                    <p className="text-xs text-gray-600">Embalagem</p>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-3xl font-bold mb-1 ${getScoreColor(evaluationResult.company_practices_score)}`}>
+                      {evaluationResult.company_practices_score}
+                    </div>
+                    <p className="text-xs text-gray-600">Práticas</p>
+                  </div>
+                </div>
+
+                {/* Match Preferences */}
+                <div className={`p-4 rounded-lg flex items-start gap-3 ${
+                  evaluationResult.matches_preferences 
+                    ? "bg-green-50 border border-green-200" 
+                    : "bg-red-50 border border-red-200"
+                }`}>
+                  {evaluationResult.matches_preferences ? (
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <p className={`font-semibold ${
+                      evaluationResult.matches_preferences ? "text-green-800" : "text-red-800"
+                    }`}>
+                      {evaluationResult.matches_preferences 
+                        ? "Compatível com suas preferências" 
+                        : "Não recomendado para seu perfil"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Allergens */}
+                {evaluationResult.allergen_warnings?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-gray-700">Alérgenos:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {evaluationResult.allergen_warnings.map((allergen, idx) => (
+                        <Badge key={idx} variant="destructive">
+                          {allergen}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Certifications */}
+                {evaluationResult.certifications?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-gray-700">Certificações:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {evaluationResult.certifications.map((cert, idx) => (
+                        <Badge key={idx} className="bg-purple-100 text-purple-700">
+                          {cert}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                {productAdded ? (
+                  <div className="space-y-3">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <p className="text-green-800 font-medium">Produto adicionado à despensa com sucesso!</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleSearchDetailed}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      >
+                        <Search className="w-4 h-4 mr-2" />
+                        Buscar Informações Detalhadas
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={onSuccess}
+                      >
+                        Concluir
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      onClick={handleConfirmAdd}
+                      disabled={adding}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+                    >
+                      {adding ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Adicionando...
+                        </>
+                      ) : (
+                        "Confirmar e Adicionar"
+                      )}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowResult(false);
+                        setEvaluationResult(null);
+                      }}
+                      disabled={adding}
+                    >
+                      Editar
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="productName">Nome do Produto *</Label>
+                    <Input
+                      id="productName"
+                      value={productName}
+                      onChange={(e) => setProductName(e.target.value)}
+                      placeholder="ex: Leite de Amêndoas Orgânico"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="brand">Marca *</Label>
+                    <Input
+                      id="brand"
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      placeholder="ex: Silk"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="category">Categoria</Label>
+                    <Select value={category} onValueChange={setCategory}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            {cat.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="expiration">Data de Validade</Label>
+                    <Input
+                      id="expiration"
+                      type="date"
+                      value={expirationDate}
+                      onChange={(e) => setExpirationDate(e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="quantity">Quantidade</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      value={quantity}
+                      onChange={(e) => setQuantity(parseInt(e.target.value))}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Observações (Opcional)</Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Observações adicionais sobre este produto"
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    ℹ️ Pesquisaremos automaticamente este produto e avaliaremos sua sustentabilidade,
+                    alérgenos e compatibilidade com suas preferências.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={handleAdd}
+                    disabled={!productName || !brand || adding}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+                  >
+                    {adding ? "Adicionando..." : "Adicionar à Despensa"}
+                  </Button>
+                  <Button variant="outline" onClick={onClose}>
+                    Cancelar
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  );
+}

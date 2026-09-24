@@ -1,0 +1,790 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Code, Heart, Lightbulb, Sparkles, Users, GraduationCap, Leaf, Database, Brain, Camera, Globe } from "lucide-react";
+import { motion } from "framer-motion";
+
+export default function About() {
+  const technologies = [
+    { name: "Bubble.io", description: "Prototipagem inicial no-code", icon: "🫧" },
+    { name: "React.js", description: "Biblioteca para interfaces reativas", icon: "⚛️" },
+    { name: "Tailwind CSS", description: "Framework CSS utilitário", icon: "🎨" },
+    { name: "Machine Learning", description: "Análise inteligente de produtos", icon: "🤖" },
+    { name: "Computer Vision", description: "Processamento de imagens", icon: "📸" },
+    { name: "NoSQL Database", description: "Banco de dados não-relacional", icon: "🗄️" }
+  ];
+
+  const odsGoals = [
+    { number: 2, name: "Fome Zero e Agricultura Sustentável", color: "bg-yellow-600" },
+    { number: 3, name: "Saúde e Bem-Estar", color: "bg-green-600" },
+    { number: 12, name: "Consumo e Produção Responsáveis", color: "bg-amber-600" },
+    { number: 13, name: "Ação Contra a Mudança Global do Clima", color: "bg-green-700" },
+    { number: 15, name: "Vida Terrestre", color: "bg-green-500" }
+  ];
+
+  const codeSnippets = [
+    {
+      title: "Modelo de Dados - Schema do Produto",
+      language: "JSON Schema",
+      code: `// Definição do schema para armazenamento no banco de dados NoSQL
+const ProductSchema = {
+  name: "PantryItem",
+  type: "object",
+  properties: {
+    product_name: { type: "string", required: true },
+    brand: { type: "string", required: true },
+    barcode: { type: "string" },
+    category: { 
+      type: "string", 
+      enum: ["food", "beverage", "personal_care", "household", "other"]
+    },
+    sustainability_score: { type: "number", min: 0, max: 100 },
+    expiration_date: { type: "date" },
+    quantity: { type: "number", default: 1 },
+    evaluation_data: {
+      type: "object",
+      properties: {
+        packaging_score: { type: "number" },
+        company_practices_score: { type: "number" },
+        allergen_warnings: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+};`
+    },
+    {
+      title: "Análise com Machine Learning",
+      language: "JavaScript",
+      code: `// Função que utiliza modelo de ML para análise de produtos
+const analyzeProduct = async (productData, imageUrl) => {
+  // Pré-processamento dos dados de entrada
+  const inputFeatures = preprocessData(productData);
+  
+  // Chamada ao modelo de Machine Learning
+  const mlResult = await MLModel.predict({
+    features: inputFeatures,
+    image: imageUrl,
+    model: "sustainability_classifier_v2"
+  });
+  
+  // Pós-processamento e retorno estruturado
+  return {
+    sustainability_score: mlResult.sustainability * 100,
+    packaging_score: mlResult.packaging * 100,
+    allergen_warnings: mlResult.detected_allergens,
+    certifications: mlResult.identified_certifications,
+    recommendation: generateRecommendation(mlResult, userProfile)
+  };
+};`
+    },
+    {
+      title: "Scanner de Código de Barras com Computer Vision",
+      language: "JavaScript",
+      code: `// Captura de imagem usando a API MediaDevices do navegador
+const initializeCamera = async () => {
+  // Solicita acesso à câmera traseira do dispositivo
+  const stream = await navigator.mediaDevices.getUserMedia({ 
+    video: { 
+      facingMode: "environment",  // Câmera traseira
+      width: { ideal: 1920 },     // Resolução HD
+      height: { ideal: 1080 }
+    }
+  });
+  
+  videoElement.srcObject = stream;
+};
+
+// Captura e processamento da imagem
+const captureAndProcess = async () => {
+  // Cria canvas para capturar frame do vídeo
+  const canvas = document.createElement('canvas');
+  canvas.width = videoElement.videoWidth;
+  canvas.height = videoElement.videoHeight;
+  
+  // Desenha o frame atual no canvas
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(videoElement, 0, 0);
+  
+  // Converte para blob e envia para processamento
+  const imageBlob = await canvasToBlob(canvas, 'image/jpeg', 0.9);
+  
+  // Envia para o modelo de Computer Vision
+  const barcodeData = await ComputerVision.detectBarcode(imageBlob);
+  const productInfo = await Database.findByBarcode(barcodeData.code);
+  
+  return productInfo;
+};`
+    },
+    {
+      title: "CRUD - Operações no Banco de Dados",
+      language: "JavaScript",
+      code: `// CREATE - Inserir novo produto na despensa
+const createPantryItem = async (productData) => {
+  const newItem = await Database.collection('PantryItem').insert({
+    product_name: productData.name,
+    brand: productData.brand,
+    category: productData.category,
+    expiration_date: productData.expiration,
+    created_by: currentUser.email,
+    created_date: new Date()
+  });
+  return newItem;
+};
+
+// READ - Buscar produtos do usuário
+const getUserProducts = async (userEmail) => {
+  const products = await Database.collection('PantryItem')
+    .find({ created_by: userEmail })
+    .sort({ expiration_date: 1 });
+  return products;
+};
+
+// UPDATE - Atualizar quantidade do produto
+const updateQuantity = async (productId, newQuantity) => {
+  await Database.collection('PantryItem').update(
+    { id: productId },
+    { quantity: newQuantity, updated_date: new Date() }
+  );
+};
+
+// DELETE - Remover produto
+const deleteProduct = async (productId) => {
+  await Database.collection('PantryItem').delete({ id: productId });
+};`
+    },
+    {
+      title: "Gestão de Perfil do Usuário",
+      language: "JavaScript",
+      code: `// Estrutura de dados do perfil no banco
+const UserProfileSchema = {
+  // Dados básicos (gerenciados pela autenticação)
+  email: String,
+  full_name: String,
+  
+  // Dados de saúde personalizáveis
+  allergies: [String],           // Ex: ["Amendoim", "Lactose"]
+  health_conditions: [String],   // Ex: ["Diabetes Tipo 2"]
+  dietary_preferences: [String], // Ex: ["Vegano", "Sem Glúten"]
+  
+  // Metas nutricionais diárias
+  daily_calorie_target: Number,  // Ex: 2000
+  daily_protein_target: Number,  // Ex: 150
+  daily_carbs_target: Number,    // Ex: 250
+  daily_fats_target: Number,     // Ex: 65
+  
+  // Prioridades de sustentabilidade
+  sustainability_priorities: [String]
+};
+
+// Função para atualizar perfil
+const updateUserProfile = async (profileData) => {
+  await Database.collection('User').update(
+    { email: currentUser.email },
+    { ...profileData, profile_completed: true }
+  );
+};`
+    },
+    {
+      title: "Workflow Bubble - Avaliação de Produto",
+      language: "Bubble Workflow",
+      code: `When Button "Analisar Produto" is clicked
+
+Step 1: Get data from API
+  API: OpenAI GPT-4
+  Body: {
+    "prompt": "Analise produto: " + Input Product's value,
+    "include_sustainability": yes,
+    "include_nutrition": yes
+  }
+
+Step 2: Only when Step 1 is successful
+  Create new thing: Product Analysis
+    Field sustainability_score = Step 1's sustainability_score
+    Field nutrition_data = Step 1's nutrition_facts
+    Field user = Current User
+    
+Step 3: Navigate to page: Product Details
+  Send parameter: product_id = Result of Step 2's unique id`
+    },
+    {
+      title: "Sistema de Notificações de Validade",
+      language: "JavaScript",
+      code: `// Algoritmo para verificar produtos próximos da validade
+const checkExpiringProducts = async () => {
+  // Busca produtos do usuário no banco de dados
+  const userItems = await Database.collection('PantryItem')
+    .find({ created_by: currentUser.email });
+  
+  // Calcula datas de referência
+  const today = new Date();
+  const alertThreshold = new Date();
+  alertThreshold.setDate(today.getDate() + 3); // 3 dias de antecedência
+  
+  // Filtra produtos que estão vencendo
+  const expiringProducts = userItems.filter(item => {
+    if (!item.expiration_date) return false;
+    const expirationDate = new Date(item.expiration_date);
+    return expirationDate <= alertThreshold && expirationDate >= today;
+  });
+  
+  // Categoriza por urgência
+  const categorized = {
+    expired: expiringProducts.filter(p => new Date(p.expiration_date) < today),
+    today: expiringProducts.filter(p => isToday(p.expiration_date)),
+    soon: expiringProducts.filter(p => new Date(p.expiration_date) > today)
+  };
+  
+  // Envia notificação se houver produtos
+  if (expiringProducts.length > 0) {
+    await NotificationService.send({
+      to: currentUser.notification_email || currentUser.email,
+      type: 'expiration_alert',
+      data: categorized
+    });
+  }
+  
+  return categorized;
+};`
+    },
+    {
+      title: "Workflow Bubble - Adicionar Item à Despensa",
+      language: "Bubble Workflow",
+      code: `When Button "Adicionar à Despensa" is clicked
+
+Step 1: Make changes to Current User
+  Field last_pantry_update = Current date/time
+
+Step 2: Create new thing: PantryItem
+  Field product_name = State product_data's name
+  Field brand = State product_data's brand
+  Field expiration_date = Input Expiration's value
+  Field quantity = Input Quantity's value
+  Field sustainability_score = State product_data's score
+  Field created_by = Current User's email
+  
+Step 3: Display data in RepeatingGroup Pantry Items
+  Data source: Do a search for PantryItems
+    Constraint: created_by = Current User's email
+    Sort by: expiration_date (ascending)
+    
+Step 4: Reset inputs
+  Input Product Name, Input Quantity, Input Expiration`
+    },
+    {
+      title: "Avaliação ESG com Machine Learning",
+      language: "JavaScript",
+      code: `// Pipeline de avaliação ESG (Environmental, Social, Governance)
+const evaluateCompanyESG = async (companyName) => {
+  // 1. Busca dados da empresa em múltiplas fontes
+  const companyData = await DataAggregator.fetchCompanyInfo(companyName);
+  
+  // 2. Processa dados com modelo de ML treinado
+  const esgAnalysis = await MLModel.predict({
+    model: "esg_scorer_v3",
+    input: {
+      company_name: companyName,
+      industry: companyData.sector,
+      public_data: companyData.reports,
+      news_sentiment: companyData.newsSentiment
+    }
+  });
+  
+  // 3. Estrutura resultado final
+  return {
+    company_name: companyName,
+    sector: companyData.sector,
+    overall_score: calculateWeightedAverage(esgAnalysis),
+    environmental_score: esgAnalysis.environmental * 100,
+    social_score: esgAnalysis.social * 100,
+    governance_score: esgAnalysis.governance * 100,
+    certifications: esgAnalysis.detected_certifications,
+    employee_rating: esgAnalysis.glassdoor_rating,
+    compliance_status: esgAnalysis.compliance_level,
+    confidence: esgAnalysis.model_confidence
+  };
+};
+
+// Função auxiliar para média ponderada
+const calculateWeightedAverage = (scores) => {
+  const weights = { environmental: 0.4, social: 0.35, governance: 0.25 };
+  return Math.round(
+    scores.environmental * weights.environmental +
+    scores.social * weights.social +
+    scores.governance * weights.governance
+  ) * 100;
+};`
+    },
+    {
+      title: "Workflow Bubble - Sistema de Login e Perfil",
+      language: "Bubble Workflow",
+      code: `When Page is loaded
+
+Step 1: Check if Current User is logged in
+  
+Step 2: Only when Step 1 = No
+  Navigate to: Welcome Page
+  
+Step 3: Only when Step 1 = Yes
+  Check if Current User's profile_completed = yes
+  
+Step 4: Only when Step 3 = No
+  Navigate to: Profile Page
+  Display: "Complete seu perfil para começar"
+  
+Step 5: Only when Step 3 = Yes
+  Show Group: Main Content
+  Load data: 
+    - PantryItems where created_by = Current User
+    - Calculate average sustainability_score`
+    },
+    {
+      title: "Comparação Nutricional com Metas Diárias",
+      language: "JavaScript",
+      code: `// Algoritmo de comparação nutricional personalizada
+const compareWithDailyTargets = (nutritionFacts, userTargets) => {
+  // Mapeamento dos macronutrientes
+  const macros = ['calories', 'protein', 'carbohydrates', 'fats'];
+  
+  const comparison = {};
+  
+  macros.forEach(macro => {
+    const value = nutritionFacts[macro] || 0;
+    const target = userTargets[\`daily_\${macro}_target\`] || 0;
+    
+    comparison[macro] = {
+      value: value,
+      target: target,
+      percentage: target > 0 ? Math.round((value / target) * 100) : 0,
+      status: getStatus(value, target)
+    };
+  });
+  
+  return comparison;
+};
+
+// Determina status baseado na porcentagem
+const getStatus = (value, target) => {
+  if (target === 0) return 'undefined';
+  const percentage = (value / target) * 100;
+  if (percentage <= 25) return 'low';
+  if (percentage <= 75) return 'moderate';
+  if (percentage <= 100) return 'good';
+  return 'exceeded';
+};`
+    },
+    {
+      title: "Hook React para Gerenciamento de Estado",
+      language: "JavaScript (React)",
+      code: `// Custom Hook para gerenciar produtos da despensa
+const usePantryItems = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Carrega itens ao montar o componente
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        const data = await Database.collection('PantryItem')
+          .find({ created_by: currentUser.email })
+          .sort({ expiration_date: 1 });
+        setItems(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchItems();
+  }, []);
+  
+  // Funções de mutação
+  const addItem = async (newItem) => {
+    const created = await Database.collection('PantryItem').insert(newItem);
+    setItems(prev => [...prev, created]);
+    return created;
+  };
+  
+  const removeItem = async (itemId) => {
+    await Database.collection('PantryItem').delete({ id: itemId });
+    setItems(prev => prev.filter(item => item.id !== itemId));
+  };
+  
+  return { items, loading, error, addItem, removeItem };
+};`
+    },
+    {
+      title: "Componente React - Card de Produto",
+      language: "JavaScript (React/JSX)",
+      code: `// Componente funcional para exibir item da despensa
+const PantryItemCard = ({ item, onDelete }) => {
+  // Calcula status de validade
+  const getExpirationStatus = () => {
+    if (!item.expiration_date) return { status: 'unknown', color: 'gray' };
+    
+    const today = new Date();
+    const expDate = new Date(item.expiration_date);
+    const daysUntil = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+    
+    if (daysUntil < 0) return { status: 'Vencido', color: 'red' };
+    if (daysUntil === 0) return { status: 'Vence hoje', color: 'orange' };
+    if (daysUntil <= 3) return { status: \`Vence em \${daysUntil} dias\`, color: 'yellow' };
+    return { status: 'Válido', color: 'green' };
+  };
+  
+  const expStatus = getExpirationStatus();
+  
+  return (
+    <Card className="shadow-lg">
+      <CardContent>
+        <h3 className="font-bold">{item.product_name}</h3>
+        <p className="text-gray-600">{item.brand}</p>
+        
+        <Badge color={expStatus.color}>
+          {expStatus.status}
+        </Badge>
+        
+        <div className="flex justify-between mt-4">
+          <span>Sustentabilidade: {item.sustainability_score}%</span>
+          <Button variant="destructive" onClick={() => onDelete(item.id)}>
+            Remover
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};`
+    }
+  ];
+
+  return (
+    <div className="min-h-screen px-4 py-8 pb-24">
+      <div className="max-w-6xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-500 to-purple-600 rounded-3xl flex items-center justify-center">
+              <Leaf className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-green-700 via-green-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              Sobre o EcoBags
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Tecnologia a serviço da sustentabilidade, saúde consciente e nutrição inteligente
+            </p>
+          </div>
+
+          {/* ODS 2030 */}
+          <Card className="border-none shadow-xl mb-8 bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 border-l-4 border-l-blue-600">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-blue-800">
+                <Globe className="w-7 h-7 text-blue-600" />
+                Compromisso com os ODS - Agenda 2030
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-700 leading-relaxed">
+                O <strong>EcoBags</strong> está alinhado com os <strong>Objetivos de Desenvolvimento Sustentável (ODS)</strong> da ONU, 
+                contribuindo para um futuro mais sustentável e saudável para todos:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {odsGoals.map((ods) => (
+                  <div key={ods.number} className={`${ods.color} text-white p-4 rounded-lg shadow-lg`}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center font-bold text-xl flex-shrink-0">
+                        {ods.number}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-sm">ODS {ods.number}</h4>
+                        <p className="text-sm opacity-90">{ods.name}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-white/80 p-4 rounded-lg border-l-4 border-blue-500 mt-4">
+                <p className="text-gray-800 text-sm">
+                  Ao promover consumo consciente, saúde nutricional e transparência empresarial, 
+                  o EcoBags contribui ativamente para a construção de um mundo mais sustentável e igualitário.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Projeto Elas - UFMS */}
+          <Card className="border-none shadow-xl mb-8 bg-gradient-to-br from-purple-50 via-pink-50 to-purple-50 border-l-4 border-l-purple-600">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-purple-800">
+                <Users className="w-7 h-7 text-pink-600" />
+                Projeto Elas - UFMS
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-4">
+                <GraduationCap className="w-12 h-12 text-purple-600 flex-shrink-0" />
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">
+                    Universidade Federal de Mato Grosso do Sul
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    O <strong>EcoBags foi desenvolvido dentro do Projeto Elas da UFMS</strong>, 
+                    uma iniciativa de integração feminina que visa trazer acolhimento e suporte 
+                    para mulheres em cursos voltados à tecnologia.
+                  </p>
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    Este projeto nasceu como parte do Projeto Elas, que proporcionou um ambiente 
+                    inclusivo e acolhedor onde foi possível desenvolver, aprender e criar soluções 
+                    tecnológicas com impacto social e ambiental.
+                  </p>
+                  <div className="bg-white/80 p-4 rounded-lg border-l-4 border-pink-500">
+                    <p className="text-gray-800 italic">
+                      "O EcoBags é resultado direto da participação no Projeto Elas da UFMS, 
+                      uma iniciativa que capacita mulheres a serem protagonistas na revolução 
+                      tecnológica através do acolhimento e da inclusão."
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-4">
+                    <Badge className="bg-purple-600">Inclusão</Badge>
+                    <Badge className="bg-pink-600">Empoderamento Feminino</Badge>
+                    <Badge className="bg-blue-600">Educação Tecnológica</Badge>
+                    <Badge className="bg-green-600">Inovação Social</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Por que foi criado */}
+          <Card className="border-none shadow-xl mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lightbulb className="w-6 h-6 text-yellow-600" />
+                Por Que o EcoBags Foi Criado?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-700 leading-relaxed">
+                O <strong>EcoBags</strong> nasceu da necessidade de conectar consumidores conscientes 
+                com informações precisas sobre sustentabilidade, adequação de produtos às necessidades 
+                de saúde e <strong>informações nutricionais detalhadas</strong>.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-green-800 mb-2">🌍 Sustentabilidade</h4>
+                  <p className="text-sm text-gray-700">
+                    Ajudar consumidores a escolherem produtos com menor impacto ambiental
+                  </p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">💚 Saúde Consciente</h4>
+                  <p className="text-sm text-gray-700">
+                    Proteger usuários com alergias e condições de saúde específicas
+                  </p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-orange-800 mb-2">🍎 Nutrição Inteligente</h4>
+                  <p className="text-sm text-gray-700">
+                    Fornecer informações nutricionais completas e personalizadas
+                  </p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">🔍 Transparência</h4>
+                  <p className="text-sm text-gray-700">
+                    Fornecer análises rigorosas sobre práticas empresariais
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Jornada de Desenvolvimento */}
+          <Card className="border-none shadow-xl mb-8 bg-gradient-to-br from-indigo-50 to-purple-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-6 h-6 text-indigo-600" />
+                Jornada de Desenvolvimento
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-700 leading-relaxed">
+                O EcoBags passou por uma evolução tecnológica cuidadosamente planejada:
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                    1
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-1">Prototipagem no Bubble.io</h4>
+                    <p className="text-sm text-gray-600">
+                      A primeira versão foi construída inteiramente no <strong>Bubble.io</strong>, 
+                      uma plataforma no-code que permitiu validar rapidamente a ideia, testar funcionalidades 
+                      e iterar sobre o design da aplicação sem necessidade de programação tradicional.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                    2
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-1">Desenvolvimento com React.js</h4>
+                    <p className="text-sm text-gray-600">
+                      Para maior controle e performance, migramos para <strong>React.js</strong>, 
+                      uma biblioteca JavaScript que permite criar interfaces de usuário reativas 
+                      e componentizadas, facilitando a manutenção e escalabilidade do código.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                    3
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-1">Integração com Machine Learning</h4>
+                    <p className="text-sm text-gray-600">
+                      Implementamos modelos de Machine Learning para análise de produtos, 
+                      processamento de imagens com Computer Vision e recomendações personalizadas 
+                      baseadas no perfil e preferências de cada usuário.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tecnologias Utilizadas */}
+          <Card className="border-none shadow-xl mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-6 h-6 text-purple-600" />
+                Tecnologias Utilizadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {technologies.map((tech, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg border border-gray-200"
+                  >
+                    <div className="text-3xl mb-2">{tech.icon}</div>
+                    <h4 className="font-semibold text-gray-800 mb-1">{tech.name}</h4>
+                    <p className="text-sm text-gray-600">{tech.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Exemplos de Código */}
+          <Card className="border-none shadow-xl mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Code className="w-6 h-6 text-green-600" />
+                Exemplos de Implementação
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Abaixo estão alguns trechos de código que ilustram as principais funcionalidades do EcoBags:
+              </p>
+              {codeSnippets.map((snippet, idx) => (
+                <div key={idx} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-800">{snippet.title}</h4>
+                    <Badge variant="outline">{snippet.language}</Badge>
+                  </div>
+                  <div 
+                    className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto select-none"
+                    style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none' }}
+                    onCopy={(e) => e.preventDefault()}
+                  >
+                    <pre className="text-sm font-mono whitespace-pre-wrap">
+                      <code>{snippet.code}</code>
+                    </pre>
+                  </div>
+                </div>
+              ))}
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                <p className="text-sm text-yellow-800">
+                  ℹ️ Os códigos são exibidos apenas para fins educacionais e não podem ser copiados.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Análise de Software */}
+          <Card className="border-none shadow-xl mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="w-6 h-6 text-indigo-600" />
+                Análise de Software
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-2">🎯 Padrões de Projeto</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    <li>Component-Based Architecture (React)</li>
+                    <li>State Management com Hooks</li>
+                    <li>API Integration Pattern</li>
+                    <li>Responsive Design Pattern</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-2">🔒 Segurança</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    <li>Autenticação gerenciada pela plataforma Base44</li>
+                    <li>Autorização baseada em usuário para dados pessoais</li>
+                    <li>Upload seguro de imagens com URLs assinadas</li>
+                    <li>Validação de dados no frontend e backend</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-2">⚡ Performance</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    <li>Lazy Loading de componentes e imagens</li>
+                    <li>React Query para cache de dados</li>
+                    <li>Animações otimizadas com Framer Motion</li>
+                    <li>Compressão de imagens antes do upload</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-2">♿ Acessibilidade</h4>
+                  <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    <li>Design responsivo para todos os dispositivos</li>
+                    <li>Componentes semânticos do shadcn/ui</li>
+                    <li>Suporte a navegação por teclado</li>
+                    <li>Cores e contrastes acessíveis</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Footer */}
+          <div className="text-center py-8">
+            <div className="flex items-center justify-center gap-2 text-gray-600 mb-4">
+              <Heart className="w-5 h-5 text-pink-500" />
+              <span>Desenvolvido com dedicação e propósito</span>
+            </div>
+            <p className="text-sm text-gray-500">
+              EcoBags © 2025 - Desenvolvido dentro do Projeto Elas da UFMS
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

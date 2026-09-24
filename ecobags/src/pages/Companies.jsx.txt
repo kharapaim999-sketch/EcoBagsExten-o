@@ -1,0 +1,215 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Search, Building2, X, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import CompanyEvaluation from "../components/companies/CompanyEvaluation";
+
+export default function Companies() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [companyData, setCompanyData] = useState(null);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const isAuthenticated = await base44.auth.isAuthenticated();
+        if (isAuthenticated) {
+          const currentUser = await base44.auth.me();
+          setUser(currentUser);
+        }
+      } catch (error) {
+        // Silently handle errors
+      }
+    };
+    loadUser();
+  }, []);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setSearching(true);
+    setCompanyData(null);
+
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Avalie a empresa "${searchQuery}" para ESG (Environmental, Social, Governance).
+
+REGRAS: Seja CONCISO mas COMPLETO. Cada campo de texto deve ter no máximo 2-3 frases curtas. NÃO use reticências (...). TERMINE todas as frases.
+
+Forneça:
+- Nome e setor
+- Scores 0-100: geral, ambiental, social, governança
+- Detalhes ambientais (2 frases)
+- Detalhes sociais (2 frases)  
+- Detalhes governança (2 frases)
+- Lista de certificações (máx 5)
+- Status compliance (1 palavra) e detalhes (2 frases)
+- Rating funcionários 0-5, resumo (2 frases)
+- 3 pontos positivos, 3 negativos
+- 3 iniciativas recentes
+- Controvérsias se houver (máx 2)
+- Comparação setor (2 frases)
+- Recomendação (2 frases)`,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            company_name: { type: "string" },
+            sector: { type: "string" },
+            overall_sustainability_score: { type: "number" },
+            environmental_score: { type: "number" },
+            environmental_details: { type: "string" },
+            social_score: { type: "number" },
+            social_details: { type: "string" },
+            governance_score: { type: "number" },
+            governance_details: { type: "string" },
+            certifications: { type: "array", items: { type: "string" } },
+            compliance_status: { type: "string" },
+            compliance_details: { type: "string" },
+            employee_rating: { type: "number" },
+            employee_reviews_summary: { type: "string" },
+            positive_points: { type: "array", items: { type: "string" } },
+            negative_points: { type: "array", items: { type: "string" } },
+            recent_initiatives: { type: "array", items: { type: "string" } },
+            controversies: { type: "array", items: { type: "string" } },
+            industry_comparison: { type: "string" },
+            recommendation: { type: "string" }
+          }
+        }
+      });
+
+      setCompanyData(result);
+    } catch (error) {
+      console.error("Error evaluating company:", error);
+    }
+
+    setSearching(false);
+  };
+
+  const handleClear = () => {
+    setSearchQuery("");
+    setCompanyData(null);
+  };
+
+  return (
+    <div className="min-h-screen px-4 py-8">
+      <div className="max-w-6xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Pesquisar Empresas</h1>
+            </div>
+            <p className="text-gray-600">Descubra práticas de sustentabilidade e responsabilidade social de empresas</p>
+          </div>
+
+          {/* Search Interface */}
+          <Card className="border-none shadow-xl mb-8 bg-gradient-to-br from-white to-blue-50">
+            <CardContent className="p-6 md:p-8">
+              <div className="flex gap-4 mb-4">
+                <div className="flex-1 relative">
+                  <Input
+                    placeholder="Digite o nome da empresa (ex: 'Natura', 'Petrobras', 'Unilever')"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                    className="h-14 pr-12 text-lg"
+                    disabled={searching}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={handleClear}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  onClick={handleSearch}
+                  disabled={searching || !searchQuery.trim()}
+                  className="h-14 px-8 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  {searching ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Search className="w-5 h-5 mr-2" />
+                      Pesquisar
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <Building2 className="w-4 h-4" />
+                <span>Análise completa de práticas ambientais, sociais e de governança (ESG)</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Loading State */}
+          <AnimatePresence>
+            {searching && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-center py-12"
+              >
+                <div className="inline-block">
+                  <Loader2 className="w-16 h-16 text-purple-600 animate-spin mb-4" />
+                  <p className="text-lg font-medium text-gray-700">Analisando empresa...</p>
+                  <p className="text-sm text-gray-500 mt-2">Coletando dados de múltiplas fontes</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Results */}
+          <AnimatePresence>
+            {companyData && !searching && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.6 }}
+              >
+                <CompanyEvaluation data={companyData} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Empty State */}
+          {!searching && !companyData && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                <Building2 className="w-12 h-12 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                Pronto para Pesquisar
+              </h3>
+              <p className="text-gray-500 max-w-md mx-auto">
+                Digite o nome de uma empresa para obter uma avaliação completa de sustentabilidade e responsabilidade social
+              </p>
+            </motion.div>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+}

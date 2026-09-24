@@ -1,0 +1,192 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Apple, TrendingUp, TrendingDown, Minus } from "lucide-react";
+
+export default function NutritionFacts({ nutritionData, userTargets }) {
+  if (!nutritionData) return null;
+
+  const calculatePercentage = (value, target) => {
+    if (!target || !value) return null;
+    return Math.round((value / target) * 100);
+  };
+
+  const getComparisonIcon = (percentage) => {
+    if (!percentage) return <Minus className="w-4 h-4 text-gray-400" />;
+    if (percentage < 80) return <TrendingDown className="w-4 h-4 text-green-500" />;
+    if (percentage > 120) return <TrendingUp className="w-4 h-4 text-orange-500" />;
+    return <Minus className="w-4 h-4 text-blue-500" />;
+  };
+
+  const getComparisonText = (percentage) => {
+    if (!percentage) return "Meta não definida";
+    if (percentage < 80) return "Abaixo da meta diária";
+    if (percentage > 120) return "Acima da meta diária";
+    return "Dentro da meta diária";
+  };
+
+  const getProgressColor = (percentage) => {
+    if (!percentage) return "bg-gray-400";
+    if (percentage < 80) return "bg-green-500";
+    if (percentage > 120) return "bg-orange-500";
+    return "bg-blue-500";
+  };
+
+  const macros = [
+    {
+      name: "Calorias",
+      value: nutritionData.calories,
+      unit: "kcal",
+      target: userTargets?.daily_calorie_target,
+      icon: "🔥"
+    },
+    {
+      name: "Proteínas",
+      value: nutritionData.protein,
+      unit: "g",
+      target: userTargets?.daily_protein_target,
+      icon: "💪"
+    },
+    {
+      name: "Carboidratos",
+      value: nutritionData.carbohydrates,
+      unit: "g",
+      target: userTargets?.daily_carbs_target,
+      icon: "🌾"
+    },
+    {
+      name: "Gorduras",
+      value: nutritionData.fats,
+      unit: "g",
+      target: userTargets?.daily_fats_target,
+      icon: "🥑"
+    }
+  ];
+
+  return (
+    <Card className="border-none shadow-lg">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Apple className="w-6 h-6 text-green-600" />
+          Informações Nutricionais
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Porção */}
+        {nutritionData.serving_size && (
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <p className="text-sm font-medium text-blue-900">
+              Porção: <span className="font-bold">{nutritionData.serving_size}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Macronutrientes */}
+        <div>
+          <h4 className="font-semibold text-gray-800 mb-3">Macronutrientes</h4>
+          <div className="space-y-4">
+            {macros.map((macro) => {
+              const percentage = calculatePercentage(macro.value, macro.target);
+              return (
+                <div key={macro.name} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{macro.icon}</span>
+                      <span className="font-medium text-gray-700">{macro.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900">
+                        {macro.value} {macro.unit}
+                      </span>
+                      {percentage && (
+                        <Badge variant="outline" className="text-xs">
+                          {percentage}% meta
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  {percentage && (
+                    <>
+                      <Progress value={Math.min(percentage, 100)} className="h-2" />
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        {getComparisonIcon(percentage)}
+                        <span>{getComparisonText(percentage)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Fibras */}
+        {nutritionData.fiber && (
+          <div className="bg-green-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-green-900">Fibras</span>
+              <span className="text-sm font-bold text-green-900">{nutritionData.fiber}g</span>
+            </div>
+          </div>
+        )}
+
+        {/* Sódio */}
+        {nutritionData.sodium && (
+          <div className="bg-orange-50 p-4 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-orange-900">Sódio</span>
+              <span className="text-sm font-bold text-orange-900">{nutritionData.sodium}mg</span>
+            </div>
+          </div>
+        )}
+
+        {/* Vitaminas */}
+        {nutritionData.vitamins && Object.keys(nutritionData.vitamins).length > 0 && (
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-3">Vitaminas</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(nutritionData.vitamins).map(([vitamin, value]) => (
+                <div key={vitamin} className="bg-purple-50 p-3 rounded-lg">
+                  <p className="text-xs text-purple-700 font-medium">{vitamin}</p>
+                  <p className="text-sm font-bold text-purple-900">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Minerais */}
+        {nutritionData.minerals && Object.keys(nutritionData.minerals).length > 0 && (
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-3">Minerais</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(nutritionData.minerals).map(([mineral, value]) => (
+                <div key={mineral} className="bg-amber-50 p-3 rounded-lg">
+                  <p className="text-xs text-amber-700 font-medium">{mineral}</p>
+                  <p className="text-sm font-bold text-amber-900">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Observações */}
+        {nutritionData.nutritional_notes && (
+          <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500">
+            <p className="text-sm text-gray-700">{nutritionData.nutritional_notes}</p>
+          </div>
+        )}
+
+        {/* Aviso se não há metas definidas */}
+        {!userTargets?.daily_calorie_target && (
+          <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+            <p className="text-sm text-yellow-800">
+              💡 Configure suas metas nutricionais no perfil para ver comparações personalizadas
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

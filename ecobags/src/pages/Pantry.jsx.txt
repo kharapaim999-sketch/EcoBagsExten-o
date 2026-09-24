@@ -1,0 +1,177 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Package, Plus, Search, Filter } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import PantryItemCard from "../components/pantry/PantryItemCard";
+import AddManualProduct from "../components/pantry/AddManualProduct";
+
+export default function Pantry() {
+  const [user, setUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showAddManual, setShowAddManual] = useState(false);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const currentUser = await base44.auth.me();
+      setUser(currentUser);
+    };
+    loadUser();
+  }, []);
+
+  const { data: items, isLoading } = useQuery({
+    queryKey: ["pantryItems"],
+    queryFn: async () => {
+      const currentUser = await base44.auth.me();
+      return base44.entities.PantryItem.filter({ created_by: currentUser.email }, "-created_date");
+    },
+    initialData: []
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: (id) => base44.entities.PantryItem.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pantryItems"] });
+    }
+  });
+
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = !searchQuery || 
+      item.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const categories = [
+    { value: "all", label: "Todos" },
+    { value: "food", label: "Alimentos" },
+    { value: "beverage", label: "Bebidas" },
+    { value: "personal_care", label: "Cuidados Pessoais" },
+    { value: "household", label: "Casa" },
+    { value: "other", label: "Outros" }
+  ];
+
+  const getExpiringCount = () => {
+    const today = new Date();
+    const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+    return items.filter((item) => {
+      if (!item.expiration_date) return false;
+      const expDate = new Date(item.expiration_date);
+      return expDate <= threeDaysFromNow && expDate >= today;
+    }).length;
+  };
+
+  return (
+    <div className="min-h-screen px-4 py-8 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
+      <div className="max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          {/* Header */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">Minha Despensa</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {items.length} itens • {getExpiringCount()} vencendo em breve
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowAddManual(true)}
+              className="bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Manualmente
+            </Button>
+          </div>
+
+          {/* Search and Filters */}
+          <Card className="border-none shadow-lg mb-6">
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="Buscar produtos..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <TabsList className="bg-gray-100">
+                    {categories.map((cat) => (
+                      <TabsTrigger key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Items Grid */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-32 bg-gray-200 rounded" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredItems.length > 0 ? (
+            <motion.div 
+              layout
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              <AnimatePresence>
+                {filteredItems.map((item) => (
+                  <PantryItemCard
+                    key={item.id}
+                    item={item}
+                    onDelete={() => deleteItemMutation.mutate(item.id)}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <div className="text-center py-16">
+              <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                {searchQuery || categoryFilter !== "all" ? "Nenhum item encontrado" : "Sua despensa está vazia"}
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {searchQuery || categoryFilter !== "all"
+                  ? "Tente ajustar sua busca ou filtros"
+                  : "Comece escaneando produtos ou adicionando-os manualmente"}
+              </p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Add Manual Product Modal */}
+        {showAddManual && (
+          <AddManualProduct
+            user={user}
+            onClose={() => setShowAddManual(false)}
+            onSuccess={() => {
+              setShowAddManual(false);
+              queryClient.invalidateQueries({ queryKey: ["pantryItems"] });
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

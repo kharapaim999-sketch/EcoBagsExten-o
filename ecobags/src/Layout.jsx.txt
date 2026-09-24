@@ -1,0 +1,271 @@
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Home, Scan, Package, User, Bell, Leaf, Menu, X, Building2, Info, Moon, Sun } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+
+export default function Layout({ children, currentPageName }) {
+  const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState(0);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('ecobags-theme');
+    return saved === 'dark';
+  });
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('ecobags-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('ecobags-theme', 'light');
+    }
+  }, [darkMode]);
+
+  useEffect(() => {
+    const checkExpiringProducts = async () => {
+      try {
+        const isAuthenticated = await base44.auth.isAuthenticated();
+        if (!isAuthenticated) return;
+        
+        const user = await base44.auth.me();
+        const items = await base44.entities.PantryItem.filter({ created_by: user.email });
+        const today = new Date();
+        const threeDaysFromNow = new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000);
+        
+        const expiring = items.filter(item => {
+          if (!item.expiration_date) return false;
+          const expDate = new Date(item.expiration_date);
+          return expDate <= threeDaysFromNow && expDate >= today;
+        });
+        
+        setNotifications(expiring.length);
+      } catch (error) {
+        // Silently handle auth errors
+      }
+    };
+    
+    checkExpiringProducts();
+  }, [location]);
+
+  // Don't show layout on Welcome page - check AFTER all hooks
+  if (currentPageName === "Welcome") {
+    return children;
+  }
+
+  const navItems = [
+    { name: "Início", icon: Home, path: createPageUrl("Home") },
+    { name: "Escanear", icon: Scan, path: createPageUrl("Scanner") },
+    { name: "Empresas", icon: Building2, path: createPageUrl("Companies") },
+    { name: "Despensa", icon: Package, path: createPageUrl("Pantry") },
+    { name: "Notificações", icon: Bell, path: createPageUrl("Notifications"), badge: notifications },
+    { name: "Sobre", icon: Info, path: createPageUrl("About") },
+    { name: "Perfil", icon: User, path: createPageUrl("Profile") },
+  ];
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${
+      darkMode 
+        ? 'bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950' 
+        : 'bg-gradient-to-br from-amber-50 via-green-50 to-purple-50'
+    }`}>
+      <style>{`
+        :root {
+          --earth-brown: #8B7355;
+          --forest-green: #2D5016;
+          --sage-green: #87A96B;
+          --warm-beige: #F5E6D3;
+          --deep-purple: #6B4E8C;
+          --terracotta: #C67B5C;
+        }
+      `}</style>
+
+      {/* Header */}
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? darkMode 
+              ? "bg-gray-900/95 backdrop-blur-lg shadow-lg shadow-purple-500/10 border-b border-gray-800"
+              : "bg-white/90 backdrop-blur-lg shadow-lg"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            {/* Logo */}
+            <Link to={createPageUrl("Home")} className="flex items-center gap-2 group">
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-300 ${
+                darkMode 
+                  ? 'bg-gradient-to-br from-green-500 to-purple-500 shadow-lg shadow-purple-500/30'
+                  : 'bg-gradient-to-br from-green-600 to-purple-600'
+              }`}>
+                <Leaf className="w-6 h-6 text-white" />
+              </div>
+              <span className={`text-2xl font-bold ${
+                darkMode
+                  ? 'bg-gradient-to-r from-green-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent'
+                  : 'bg-gradient-to-r from-green-700 via-green-600 to-purple-600 bg-clip-text text-transparent'
+              }`}>
+                EcoBags
+              </span>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDarkMode(!darkMode)}
+                className={`mr-2 ${darkMode ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-700 hover:text-gray-900'}`}
+                title={darkMode ? 'Modo Claro' : 'Modo Escuro'}
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    className={`relative px-4 py-2 rounded-xl font-medium transition-all duration-300 flex items-center gap-2 ${
+                      isActive
+                        ? darkMode
+                          ? "bg-gradient-to-r from-green-500 to-purple-500 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-gradient-to-r from-green-600 to-purple-600 text-white shadow-lg"
+                        : darkMode
+                          ? "text-gray-300 hover:bg-gray-800/50"
+                          : "text-gray-700 hover:bg-white/50"
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.name}
+                    {item.badge > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDarkMode(!darkMode)}
+                className={`${darkMode ? 'text-yellow-400' : 'text-gray-700'}`}
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </Button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className={`p-2 rounded-lg transition-colors ${
+                  darkMode ? 'hover:bg-gray-800/50' : 'hover:bg-white/50'
+                }`}
+              >
+                {mobileMenuOpen ? (
+                  <X className={`w-6 h-6 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                ) : (
+                  <Menu className={`w-6 h-6 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className={`md:hidden backdrop-blur-lg border-t ${
+            darkMode 
+              ? 'bg-gray-900/95 border-gray-800' 
+              : 'bg-white/95'
+          }`}>
+            <nav className="px-4 py-4 space-y-2">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                      isActive
+                        ? darkMode
+                          ? "bg-gradient-to-r from-green-500 to-purple-500 text-white shadow-lg shadow-purple-500/30"
+                          : "bg-gradient-to-r from-green-600 to-purple-600 text-white"
+                        : darkMode
+                          ? "text-gray-300 hover:bg-gray-800"
+                          : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    {item.name}
+                    {item.badge > 0 && (
+                      <span className="ml-auto w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <main className="pt-16 md:pt-20 min-h-screen">
+        {children}
+      </main>
+
+      {/* Mobile Bottom Navigation */}
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 border-t z-40 ${
+        darkMode 
+          ? 'bg-gray-900 border-gray-800' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <div className="flex items-center justify-around px-2 py-3">
+          {navItems.slice(0, 5).map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`relative flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all ${
+                  isActive 
+                    ? darkMode 
+                      ? "text-purple-400" 
+                      : "text-purple-600" 
+                    : darkMode
+                      ? "text-gray-400"
+                      : "text-gray-600"
+                }`}
+              >
+                <item.icon className={`w-6 h-6 ${isActive ? "scale-110" : ""}`} />
+                <span className="text-xs font-medium truncate max-w-[60px]">{item.name}</span>
+                {item.badge > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

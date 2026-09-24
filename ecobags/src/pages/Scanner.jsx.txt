@@ -1,0 +1,558 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Scan, Search, Camera, X, Loader2, Plus, Package, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import ProductEvaluation from "../components/scanner/ProductEvaluation";
+import ScannerCamera from "../components/scanner/ScannerCamera";
+import ScannedProductsList from "../components/scanner/ScannedProductsList";
+import ManualProductForm from "../components/scanner/ManualProductForm";
+
+export default function Scanner() {
+  const [activeTab, setActiveTab] = useState("search");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [barcodeQuery, setBarcodeQuery] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [productData, setProductData] = useState(null);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
+  
+  // Multi-scan support
+  const [scannedProducts, setScannedProducts] = useState([]);
+  const [addedProductIds, setAddedProductIds] = useState([]);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const isAuthenticated = await base44.auth.isAuthenticated();
+        if (isAuthenticated) {
+          const currentUser = await base44.auth.me();
+          setUser(currentUser);
+        }
+      } catch (error) {
+        // Silently handle errors
+      }
+    };
+    loadUser();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const search = urlParams.get("search");
+    if (search) {
+      setSearchQuery(search);
+    }
+  }, []);
+
+  const evaluateProduct = async (query, imageUrl = null) => {
+    setScanning(true);
+    setProductData(null);
+    setError(null);
+
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `${imageUrl ? `TAREFA CRÍTICA: Analise CUIDADOSAMENTE a imagem do produto.
+
+DETECÇÃO AUTOMÁTICA DE CÓDIGO:
+1. PRIMEIRO, identifique se a imagem contém um CÓDIGO DE BARRAS ou QR CODE
+2. Se for CÓDIGO DE BARRAS: Leia os números exatos e identifique o produto
+3. Se for QR CODE: Leia o conteúdo (pode ser URL, texto ou dados estruturados)
+   - Se contiver URL, extraia informações do produto a partir do link
+   - Se contiver texto/dados, use para identificar o produto
+
+EXTRAIA COM PRECISÃO:
+- O código identificado (números do código de barras OU conteúdo do QR Code)
+- O nome EXATO do produto conforme aparece na embalagem
+- A marca/fabricante exato
+- Todas as informações visíveis no rótulo
+
+Se não conseguir ler o código claramente, indique "Não identificado".
+Após identificar o produto, pesquise informações detalhadas sobre ele.` : `Pesquise informações detalhadas sobre o produto: "${query}"`}
+
+PERFIL DO USUÁRIO PARA VERIFICAR COMPATIBILIDADE:
+- Alergias: ${user?.allergies?.join(", ") || "Nenhuma especificada"}
+- Condições de Saúde: ${user?.health_conditions?.join(", ") || "Nenhuma especificada"}
+- Preferências Alimentares: ${user?.dietary_preferences?.join(", ") || "Nenhuma especificada"}
+- Prioridades de Sustentabilidade: ${user?.sustainability_priorities?.join(", ") || "Nenhuma especificada"}
+
+INSTRUÇÕES OBRIGATÓRIAS:
+- Forneça o NOME EXATO e COMPLETO do produto (não abrevie)
+- Forneça a MARCA EXATA do fabricante
+- Todos os scores devem ser números entre 0 e 100
+- Rating de funcionários deve ser entre 0 e 5
+- COMPLETE todas as frases (NÃO use reticências "...")
+- Seja ESPECÍFICO e PRECISO nas informações
+- Verifique se o produto é compatível com as alergias e condições do usuário
+- OBRIGATÓRIO: Forneça informações nutricionais COMPLETAS (calorias, proteínas, carboidratos, gorduras, fibras, sódio)
+- Sugira 3 produtos alternativos mais saudáveis ou sustentáveis da mesma categoria
+
+METAS NUTRICIONAIS DIÁRIAS DO USUÁRIO (para comparação):
+- Calorias: ${user?.daily_calorie_target || 2000} kcal
+- Proteínas: ${user?.daily_protein_target || 50}g
+- Carboidratos: ${user?.daily_carbs_target || 300}g
+- Gorduras: ${user?.daily_fats_target || 65}g`,
+        add_context_from_internet: true,
+        file_urls: imageUrl ? [imageUrl] : undefined,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            product_name: { type: "string", description: "Nome completo e exato do produto" },
+            brand: { type: "string", description: "Marca/fabricante do produto" },
+            barcode: { type: "string", description: "Código de barras identificado ou 'Não identificado'" },
+            category: { type: "string", enum: ["food", "beverage", "personal_care", "household", "other"] },
+            sustainability_score: { type: "number", minimum: 0, maximum: 100 },
+            packaging_score: { type: "number", minimum: 0, maximum: 100 },
+            company_practices_score: { type: "number", minimum: 0, maximum: 100 },
+            compliance_status: { type: "string", description: "Status de conformidade regulatória" },
+            employee_rating: { type: "number", minimum: 0, maximum: 5 },
+            allergen_warnings: { type: "array", items: { type: "string" }, description: "Lista de alérgenos presentes" },
+            certifications: { type: "array", items: { type: "string" }, description: "Certificações do produto" },
+            matches_preferences: { type: "boolean", description: "Se é compatível com o perfil do usuário" },
+            recommendation: { type: "string", description: "Recomendação detalhada para o usuário" },
+            warnings: { type: "array", items: { type: "string" }, description: "Avisos importantes baseados no perfil" },
+            packaging_details: { type: "string", description: "Detalhes sobre a embalagem e reciclabilidade" },
+            company_practices_details: { type: "string", description: "Práticas de sustentabilidade da empresa" },
+            compliance_details: { type: "string", description: "Detalhes de conformidade com regulamentações" },
+            employee_reviews_summary: { type: "string", description: "Resumo de avaliações de funcionários" },
+            nutrition_facts: { 
+              type: "object", 
+              description: "Informações nutricionais por porção",
+              properties: {
+                serving_size: { type: "string", description: "Tamanho da porção (ex: 100g, 1 unidade)" },
+                calories: { type: "number", description: "Calorias em kcal" },
+                protein: { type: "number", description: "Proteínas em gramas" },
+                carbohydrates: { type: "number", description: "Carboidratos em gramas" },
+                fats: { type: "number", description: "Gorduras totais em gramas" },
+                fiber: { type: "number", description: "Fibras em gramas" },
+                sodium: { type: "number", description: "Sódio em mg" },
+                sugar: { type: "number", description: "Açúcares em gramas" },
+                saturated_fat: { type: "number", description: "Gordura saturada em gramas" }
+              }
+            },
+            alternative_products: {
+              type: "array",
+              description: "3 produtos alternativos mais saudáveis ou sustentáveis",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  brand: { type: "string" },
+                  reason: { type: "string", description: "Por que é uma boa alternativa" },
+                  nutrition_highlight: { type: "string", description: "Destaque nutricional" }
+                }
+              }
+            }
+          },
+          required: ["product_name", "brand", "sustainability_score", "category", "matches_preferences", "recommendation", "nutrition_facts"]
+        }
+      });
+
+      setProductData(result);
+      
+      // Add to scanned products list for multi-scan
+      if (result.product_name) {
+        setScannedProducts(prev => [...prev, result]);
+      }
+    } catch (err) {
+      console.error("Error evaluating product:", err);
+      setError("Não foi possível analisar o produto. Tente novamente ou use outro método de busca.");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+    evaluateProduct(searchQuery);
+  };
+
+  const handleClear = () => {
+    setSearchQuery("");
+    setBarcodeQuery("");
+    setProductData(null);
+    setError(null);
+  };
+
+  const handleBarcodeSearch = () => {
+    if (!barcodeQuery.trim()) return;
+    evaluateProduct(`Código de barras: ${barcodeQuery}`);
+  };
+
+  const handleCameraCapture = async (decodedText) => {
+    setShowCamera(false);
+    setActiveTab("search");
+    await evaluateProduct(`Código detectado: ${decodedText}`);
+  };
+
+  const handleManualSubmit = (result) => {
+    setProductData(result);
+    setScannedProducts(prev => [...prev, result]);
+    setShowManualForm(false);
+  };
+
+  const handleRemoveScannedProduct = (index) => {
+    setScannedProducts(prev => prev.filter((_, i) => i !== index));
+    setAddedProductIds(prev => prev.filter(id => id !== index));
+  };
+
+  const handleViewProduct = (product) => {
+    setProductData(product);
+  };
+
+  const handleAddToPantry = async (product, index) => {
+    try {
+      await base44.entities.PantryItem.create({
+        product_name: product.product_name,
+        brand: product.brand,
+        barcode: product.barcode,
+        category: product.category || "other",
+        sustainability_score: product.sustainability_score,
+        matches_preferences: product.matches_preferences,
+        evaluation_data: {
+          packaging_score: product.packaging_score,
+          company_practices_score: product.company_practices_score,
+          compliance_status: product.compliance_status,
+          employee_rating: product.employee_rating,
+          allergen_warnings: product.allergen_warnings,
+          certifications: product.certifications
+        }
+      });
+      setAddedProductIds(prev => [...prev, index]);
+    } catch (error) {
+      console.error("Error adding to pantry:", error);
+    }
+  };
+
+  const handleScanAnother = () => {
+    setProductData(null);
+    setShowCamera(true);
+  };
+
+  return (
+    <div className="min-h-screen px-4 py-8 pb-24 dark:bg-gradient-to-br dark:from-gray-900 dark:via-slate-900 dark:to-gray-950">
+      <div className="max-w-6xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">Escaneador de Produtos</h1>
+            <p className="text-gray-600 dark:text-gray-400">Busque, escaneie ou adicione produtos manualmente</p>
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+            <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3">
+              <TabsTrigger value="search" className="flex items-center gap-2">
+                <Search className="w-4 h-4" />
+                Buscar
+              </TabsTrigger>
+              <TabsTrigger value="camera" className="flex items-center gap-2">
+                <Camera className="w-4 h-4" />
+                Escanear
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Manual
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Scanned Products List - Multi-scan support */}
+          <ScannedProductsList
+            products={scannedProducts}
+            onRemove={handleRemoveScannedProduct}
+            onView={handleViewProduct}
+            onAddToPantry={handleAddToPantry}
+            addedIds={addedProductIds}
+          />
+
+          {/* Search Tab */}
+          {activeTab === "search" && !showCamera && (
+            <Card className="border-none shadow-xl mb-8 bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-gray-900 dark:shadow-2xl dark:shadow-purple-500/10">
+              <CardContent className="p-6 md:p-8">
+                {/* Product Name Search */}
+                <div className="flex gap-4 mb-4">
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Digite o nome do produto ou marca"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                      className="h-14 pr-12 text-lg"
+                      disabled={scanning}
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={handleClear}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleSearch}
+                    disabled={scanning || !searchQuery.trim()}
+                    className="h-14 px-8 bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+                  >
+                    {scanning ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Search className="w-5 h-5 mr-2" />
+                        Analisar
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Divider */}
+                <div className="flex items-center gap-4 my-4">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-sm text-gray-400">ou</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Barcode Input */}
+                <div className="flex gap-4 mb-4">
+                  <div className="flex-1 relative">
+                    <Input
+                      placeholder="Digite o código de barras (ex: 7891234567890)"
+                      value={barcodeQuery}
+                      onChange={(e) => setBarcodeQuery(e.target.value.replace(/\D/g, ''))}
+                      onKeyPress={(e) => e.key === "Enter" && handleBarcodeSearch()}
+                      className="h-12 pr-12 font-mono"
+                      disabled={scanning}
+                      maxLength={14}
+                    />
+                    {barcodeQuery && (
+                      <button
+                        onClick={() => setBarcodeQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleBarcodeSearch}
+                    disabled={scanning || !barcodeQuery.trim()}
+                    variant="outline"
+                    className="h-12 px-6 border-purple-300 text-purple-600 hover:bg-purple-50"
+                  >
+                    {scanning ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Scan className="w-5 h-5 mr-2" />
+                        Buscar
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="flex items-center gap-4 text-sm text-gray-500">
+                  <Scan className="w-4 h-4" />
+                  <span>Pesquisa com IA em múltiplas fontes para avaliação completa</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Camera Tab */}
+          {activeTab === "camera" && (
+            <Card className="border-none shadow-xl mb-8 dark:bg-gray-800 dark:shadow-2xl dark:shadow-purple-500/10">
+              <CardContent className="p-6">
+                {!showCamera ? (
+                  <div className="text-center py-12">
+                    <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-100 to-purple-100 rounded-full flex items-center justify-center">
+                      <Camera className="w-12 h-12 text-purple-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                      Escanear Código de Barras
+                    </h3>
+                    <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                      Aponte a câmera para o código de barras ou rótulo do produto
+                    </p>
+                    <Button
+                      onClick={() => setShowCamera(true)}
+                      size="lg"
+                      className="bg-gradient-to-r from-green-600 to-purple-600 hover:from-green-700 hover:to-purple-700"
+                    >
+                      <Camera className="w-5 h-5 mr-2" />
+                      Abrir Câmera
+                    </Button>
+                  </div>
+                ) : (
+                  <ScannerCamera
+                    onCapture={handleCameraCapture}
+                    onClose={() => setShowCamera(false)}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Manual Tab */}
+          {activeTab === "manual" && (
+            <Card className="border-none shadow-xl mb-8 dark:bg-gray-800 dark:shadow-2xl dark:shadow-purple-500/10">
+              <CardContent className="p-6">
+                <div className="text-center py-12">
+                  <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center">
+                    <Package className="w-12 h-12 text-orange-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                    Adicionar Produto Manualmente
+                  </h3>
+                  <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                    Produto não reconhecido? Adicione as informações manualmente e receba sugestões da IA
+                  </p>
+                  <Button
+                    onClick={() => setShowManualForm(true)}
+                    size="lg"
+                    className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Adicionar Produto
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading State */}
+          <AnimatePresence>
+            {scanning && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-center py-12"
+              >
+                <div className="inline-block">
+                  <Loader2 className="w-16 h-16 text-purple-600 animate-spin mb-4" />
+                  <p className="text-lg font-medium text-gray-700">Analisando produto...</p>
+                  <p className="text-sm text-gray-500 mt-2">Extraindo informações e pesquisando dados</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Results */}
+          <AnimatePresence>
+            {productData && !scanning && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.6 }}
+              >
+                <ProductEvaluation data={productData} user={user} />
+                
+                {/* Scan Another Button */}
+                <div className="flex justify-center mt-6 gap-4">
+                  <Button
+                    onClick={handleScanAnother}
+                    variant="outline"
+                    size="lg"
+                    className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Camera className="w-5 h-5 mr-2" />
+                    Escanear Outro
+                  </Button>
+                  <Button
+                    onClick={() => setProductData(null)}
+                    variant="outline"
+                    size="lg"
+                  >
+                    <Search className="w-5 h-5 mr-2" />
+                    Nova Busca
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Error State */}
+          <AnimatePresence>
+            {error && !scanning && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="mb-8"
+              >
+                <Card className="border-none shadow-lg border-l-4 border-l-red-500 bg-red-50">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <AlertCircle className="w-8 h-8 text-red-500 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-red-800 mb-2">Erro na Análise</h3>
+                        <p className="text-red-700 mb-4">{error}</p>
+                        <div className="flex gap-3">
+                          <Button
+                            onClick={() => setError(null)}
+                            variant="outline"
+                            className="border-red-300 text-red-600 hover:bg-red-100"
+                          >
+                            Tentar Novamente
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setError(null);
+                              setActiveTab("camera");
+                              setShowCamera(true);
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            <Camera className="w-4 h-4 mr-2" />
+                            Usar Câmera
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Empty State */}
+          {!scanning && !productData && !error && !showCamera && activeTab === "search" && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-16"
+            >
+              <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-green-100 to-purple-100 rounded-full flex items-center justify-center">
+                <Scan className="w-12 h-12 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                Pronto para Analisar
+              </h3>
+              <p className="text-gray-500 max-w-md mx-auto">
+                Digite o nome de um produto, use a câmera para escanear ou adicione manualmente
+              </p>
+            </motion.div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Manual Form Modal */}
+      <AnimatePresence>
+        {showManualForm && (
+          <ManualProductForm
+            user={user}
+            onSubmit={handleManualSubmit}
+            onClose={() => setShowManualForm(false)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

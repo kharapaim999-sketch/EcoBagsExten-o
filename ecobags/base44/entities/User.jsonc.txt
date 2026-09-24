@@ -1,0 +1,65 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "allergies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of user allergies"
+    },
+    "health_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Health issues or conditions"
+    },
+    "dietary_preferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dietary preferences (vegan, gluten-free, etc.)"
+    },
+    "sustainability_priorities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What sustainability factors matter most to the user"
+    },
+    "daily_calorie_target": {
+      "type": "number",
+      "description": "Daily calorie target in kcal"
+    },
+    "daily_protein_target": {
+      "type": "number",
+      "description": "Daily protein target in grams"
+    },
+    "daily_carbs_target": {
+      "type": "number",
+      "description": "Daily carbohydrates target in grams"
+    },
+    "daily_fats_target": {
+      "type": "number",
+      "description": "Daily fats target in grams"
+    },
+    "notification_email": {
+      "type": "string",
+      "description": "Email for notifications (optional)"
+    },
+    "profile_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the user has completed their profile"
+    }
+  },
+  "required": [
+    "allergies",
+    "health_conditions",
+    "dietary_preferences",
+    "sustainability_priorities"
+  ]
+}
