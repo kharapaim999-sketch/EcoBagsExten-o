@@ -4,7 +4,7 @@
 
 O EcoBags é uma solução digital desenvolvida para ajudar consumidores a gerenciar sua despensa de forma mais inteligente, saudável e sustentável. A plataforma permite registrar produtos, monitorar validades, escanear itens, avaliar sua sustentabilidade e receber alertas relevantes para apoiar decisões de consumo mais conscientes.
 
-O projeto foi implementado como uma aplicação web moderna em React, com foco em experiência do usuário, organização de dados e integração com serviços de backend via Base44. O objetivo central é transformar a rotina de compras e armazenamento em uma experiência orientada por dados, praticidade e impacto ambiental positivo.
+O projeto foi implementado como uma aplicação web moderna em React, com foco em experiência do usuário, organização de dados e integração com serviços de dados via Base44. O objetivo central é transformar a rotina de compras e armazenamento em uma experiência orientada por dados, praticidade e impacto ambiental positivo.
 
 ## 2. Objetivo do Produto
 
